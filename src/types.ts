@@ -64,8 +64,8 @@ export interface InvoiceData {
 
 export interface PartyMetadata {
   name?: string | null;
-  siren?: string;
-  siret?: string;
+  siren?: string | null;
+  siret?: string | null;
   vatNumber?: string | null;
 }
 
