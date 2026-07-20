@@ -37,12 +37,19 @@ function parseFlowFile(content: Buffer): ParsedFlow {
       metadata.seller = {
         name: m1(supplier, /<cbc:RegistrationName>([^<]+)</) || m1(supplier, /<cbc:Name>([^<]+)</),
         vatNumber: m1(supplier, /<cbc:CompanyID>(FR[^<]+)</),
+        siret:
+          m1(supplier, /<cbc:EndpointID schemeID="0225">([^<]+)</) ||
+          m1(supplier, /<cbc:EndpointID>([^<]+)</),
       };
     }
     if (customer) {
       metadata.buyer = {
         name: m1(customer, /<cbc:RegistrationName>([^<]+)</) || m1(customer, /<cbc:Name>([^<]+)</),
         vatNumber: m1(customer, /<cbc:CompanyID>(FR[^<]+)</),
+        siret:
+          m1(customer, /<cbc:EndpointID schemeID="0225">([^<]+)</) ||
+          m1(customer, /<cbc:EndpointID>([^<]+)</),
+        siren: m1(customer, /<cbc:ID schemeID="0002">([^<]+)</) || m1(customer, /<cbc:ID>([^<]+)</),
       };
     }
     const payable = m1(head, /<cbc:PayableAmount[^>]*>([^<]+)</);
