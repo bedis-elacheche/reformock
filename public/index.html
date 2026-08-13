@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Spectral:wght@500;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Roboto:ital,wght@0,100..900;1,100..900&family=Shadows+Into+Light&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="styles.css" />
@@ -29,18 +29,27 @@
 
     <main>
       <section class="card" id="authCard">
-        <div class="body authbar">
-          <span class="authtitle">Compte API</span>
-          <div class="authfield">
-            <label for="clientId">client_id</label>
-            <input type="text" id="clientId" placeholder="client_id" autocomplete="off" />
+        <div class="body">
+          <div class="authbar-header">
+            <span class="authtitle">Compte API</span>
+            <span id="authState">non connecté</span>
           </div>
-          <div class="authfield">
-            <label for="clientSecret">client_secret</label>
-            <input type="text" id="clientSecret" placeholder="client_secret" autocomplete="off" />
+          <div class="authbar-content">
+            <div class="authfield">
+              <label for="clientId">Identifiant</label>
+              <input type="text" id="clientId" placeholder="client_id" autocomplete="username" />
+            </div>
+            <div class="authfield">
+              <label for="clientSecret">Secret</label>
+              <input
+                type="password"
+                id="clientSecret"
+                placeholder="client_secret"
+                autocomplete="current-password"
+              />
+            </div>
+            <button id="btnConnect">Obtenir un jeton</button>
           </div>
-          <button id="btnConnect">Obtenir un jeton</button>
-          <span id="authState">non connecté</span>
         </div>
       </section>
 
