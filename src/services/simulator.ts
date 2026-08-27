@@ -22,9 +22,17 @@ interface CreateLifecycleFlowParams {
   flowType: string;
   status: { code: string; name: string };
   comment?: string | null;
+  reasonCode?: string | null;
   invoice: LifecycleInvoice;
   seller: LifecycleParty;
   buyer: LifecycleParty;
+  settlement?: LifecycleSettlement;
+}
+
+interface LifecycleSettlement {
+  amount?: number | null;
+  vatRate?: number | null;
+  currency?: string | null;
 }
 
 interface ScheduleLifecycleParams {
@@ -32,6 +40,7 @@ interface ScheduleLifecycleParams {
   invoice: LifecycleInvoice;
   seller?: Partial<LifecycleParty>;
   buyer?: Partial<LifecycleParty>;
+  settlement?: LifecycleSettlement;
 }
 
 async function createIncomingInvoiceFlow(): Promise<Flow> {
@@ -87,10 +96,15 @@ async function createIncomingInvoiceFlow(): Promise<Flow> {
 
   createLifecycleFlow({
     flowType: "SupplierInvoiceLC",
-    status: { code: "204", name: "Mise à disposition" },
+    status: { code: "203", name: "Mise à disposition" },
     invoice: { number: inv.invoiceNumber, date: inv.issueDate },
     seller: { siret: inv.seller.siret, siren: inv.seller.siren },
     buyer: { siret: inv.buyer.siret, siren: inv.buyer.siren },
+    settlement: {
+      amount: inv.totals.totalTTC,
+      vatRate: inv.totals.vatRate,
+      currency: inv.currency,
+    },
   });
 
   return flow;
@@ -100,17 +114,20 @@ function createLifecycleFlow({
   flowType,
   status,
   comment,
+  reasonCode,
   invoice,
   seller,
   buyer,
+  settlement,
 }: CreateLifecycleFlowParams): Flow {
   const xml = generateCDAR({
     statusCode: status.code,
-    statusName: status.name,
     comment,
+    reasonCode,
     invoice,
     seller,
     buyer,
+    settlement,
   });
   const metadata: FlowMetadata = {
     relatedInvoice: invoice.number,
@@ -143,6 +160,7 @@ function scheduleLifecycleForDepositedInvoice({
   invoice,
   seller = {},
   buyer = {},
+  settlement,
 }: ScheduleLifecycleParams): void {
   const sellerSiret = seller.siret ?? "00000000000000";
   const buyerSiret = buyer.siret ?? "11111111111111";
@@ -162,7 +180,8 @@ function scheduleLifecycleForDepositedInvoice({
     setTimeout(
       () => {
         const invoiceFlow = flowId ? store.getFlow(flowId) : null;
-        if (invoiceFlow && ["201", "208", "210"].includes(invoiceFlow.statusCode ?? "")) {
+        // Statuts bloquants : la progression nominale s'arrête là.
+        if (invoiceFlow && ["207", "210", "213"].includes(invoiceFlow.statusCode ?? "")) {
           return;
         }
         createLifecycleFlow({
@@ -171,6 +190,7 @@ function scheduleLifecycleForDepositedInvoice({
           invoice,
           seller: sellerParty,
           buyer: buyerParty,
+          settlement,
         });
         if (invoiceFlow) {
           store.updateFlowStatus(flowId, { statusCode: status.code, statusName: status.name });

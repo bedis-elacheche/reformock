@@ -48,8 +48,9 @@ test("parseFlowFile detects CDAR lifecycle status", () => {
   const r = parseFlowFile(Buffer.from(CDAR_XML, "utf8"));
   assert.equal(r.flowSyntax, "CDAR");
   assert.equal(r.invoiceNumber, "INV-CDAR-003");
-  assert.equal(r.metadata.statusCode, "206");
+  assert.equal(r.metadata.statusCode, "205");
   assert.equal(r.metadata.statusName, "Approuvée");
+  assert.equal(r.metadata.seller?.siren, "111222333");
 });
 
 test("parseFlowFile detects Factur-X via PDF magic bytes", () => {

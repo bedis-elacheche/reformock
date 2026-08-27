@@ -149,11 +149,13 @@ test("POST /v1/admin/flows/:id/status forces a status and emits a CDAR lifecycle
 
   const cdar = store.getFlow(body.lifecycleFlow.flowId);
   const xml = cdar?.documents.Original?.content.toString("utf8") ?? "";
-  assert.match(xml, /<ram:StatusReason>TVA incorrecte<\/ram:StatusReason>/);
+  assert.match(xml, /<ram:Reason>TVA incorrecte<\/ram:Reason>/);
+  assert.match(xml, /<ram:ReasonCode>NON_CONFORME<\/ram:ReasonCode>/);
 
   assert.match(xml, /<ram:IssuerAssignedID>INV-UBL-001<\/ram:IssuerAssignedID>/);
+  assert.match(xml, /<ram:ProcessConditionCode>210<\/ram:ProcessConditionCode>/);
   assert.match(xml, /<qdt:DateTimeString format="102">20260115<\/qdt:DateTimeString>/);
-  assert.match(xml, /<ram:ID schemeID="0009">123456789<\/ram:ID>/);
+  assert.match(xml, /<ram:GlobalID schemeID="0002">123456789<\/ram:GlobalID>/);
   assert.match(xml, /<ram:GlobalID schemeID="0002">987654321<\/ram:GlobalID>/);
   assert.doesNotMatch(xml, /00000000000000|11111111111111/);
 });

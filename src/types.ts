@@ -79,6 +79,7 @@ export interface FlowMetadata {
   totalExclVat?: number;
   totalVat?: number;
   totalInclVat?: number;
+  vatRate?: number | null;
   statusCode?: string | null;
   statusName?: string | null;
   relatedInvoice?: string;
@@ -230,7 +231,11 @@ export interface InternalSearchResult {
 export interface LifecycleStatus {
   code: string;
   name: string;
+  /** Phase CDV : transmission (statut plateforme) ou traitement (statut acheteur). */
+  phase: "transmission" | "processing";
   requiresReason?: boolean;
+  /** Motif (MDT-113) par défaut, dans la liste autorisée pour ce statut. */
+  reasonCode?: string;
 }
 
 export interface WebhookRecord {
