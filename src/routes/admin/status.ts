@@ -45,6 +45,7 @@ export function forceFlowStatus(req: Req, res: Res): Res | void {
       flowType: lcType,
       status: { code: statusCode, name: statusName },
       comment: body.comment || null,
+      reasonCode: body.reasonCode || null,
       invoice: { number: flow.invoiceNumber || flow.flowId, date: md.issueDate },
       seller: {
         siret: sellerSiret,

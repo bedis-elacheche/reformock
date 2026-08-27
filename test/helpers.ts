@@ -124,13 +124,26 @@ export const CII_XML = `<?xml version="1.0" encoding="UTF-8"?>
 export const CDAR_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <rsm:CrossDomainAcknowledgementAndResponse
     xmlns:rsm="urn:un:unece:uncefact:data:standard:CrossDomainAcknowledgementAndResponse:100"
-    xmlns:ram="urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100">
+    xmlns:ram="urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100"
+    xmlns:qdt="urn:un:unece:uncefact:data:standard:QualifiedDataType:100"
+    xmlns:udt="urn:un:unece:uncefact:data:standard:UnqualifiedDataType:100">
+  <rsm:ExchangedDocument>
+    <ram:ID>LC-INV-CDAR-003-205</ram:ID>
+    <ram:IssueDateTime>
+      <udt:DateTimeString format="204">20260301103000</udt:DateTimeString>
+    </ram:IssueDateTime>
+    <ram:RecipientTradeParty>
+      <ram:GlobalID schemeID="0002">111222333</ram:GlobalID>
+      <ram:RoleCode>SE</ram:RoleCode>
+    </ram:RecipientTradeParty>
+  </rsm:ExchangedDocument>
   <rsm:AcknowledgementDocument>
+    <ram:TypeCode>23</ram:TypeCode>
     <ram:ReferenceReferencedDocument>
       <ram:IssuerAssignedID>INV-CDAR-003</ram:IssuerAssignedID>
+      <ram:TypeCode>380</ram:TypeCode>
+      <ram:ProcessConditionCode>205</ram:ProcessConditionCode>
     </ram:ReferenceReferencedDocument>
-    <ram:StatusCode>206</ram:StatusCode>
-    <ram:StatusName>Approuvée</ram:StatusName>
   </rsm:AcknowledgementDocument>
 </rsm:CrossDomainAcknowledgementAndResponse>`;
 

@@ -143,7 +143,7 @@ curl -s -X POST http://localhost:3000/v1/flows \
 #          "trackingId": "MON-REF-ERP-001", "processingRule": "B2B", "flowProfile": "CIUS", "sha256": "..." }
 ```
 
-Si `flowInfo.sha256` est fourni, il est vérifié contre l'empreinte du fichier reçu (400 `CHECKSUM_MISMATCH` en cas d'écart). Le `trackingId` est optionnel, stocké tel quel (unicité non contrôlée), et utilisable comme critère de recherche. Après le dépôt, le simulateur génère progressivement les statuts de cycle de vie entrants (`CustomerInvoiceLC`, CDAR) : Émise par la plateforme → Reçue → Mise à disposition → Prise en charge → Approuvée → Paiement transmis → Encaissée. Récupérez-les :
+Si `flowInfo.sha256` est fourni, il est vérifié contre l'empreinte du fichier reçu (400 `CHECKSUM_MISMATCH` en cas d'écart). Le `trackingId` est optionnel, stocké tel quel (unicité non contrôlée), et utilisable comme critère de recherche. Après le dépôt, le simulateur génère progressivement les statuts de cycle de vie entrants (`CustomerInvoiceLC`, CDAR) : Émise par la plateforme (201) → Reçue (202) → Mise à disposition (203) → Prise en charge (204) → Approuvée (205) → Paiement transmis (211) → Encaissée (212). Récupérez-les :
 
 ```bash
 curl -s -X POST http://localhost:3000/v1/flows/search \
@@ -153,7 +153,7 @@ curl -s -X POST http://localhost:3000/v1/flows/search \
 
 ### 4. Simuler le cycle de vie : forcer un statut sur une facture
 
-Depuis la console web, chaque facture du registre a un menu déroulant **Statut** : choisissez le nouveau statut (un motif est demandé pour Rejetée, Refusée, En litige, Approuvée partiellement). Ou par API :
+Depuis la console web, chaque facture du registre a un menu déroulant **Statut** : choisissez le nouveau statut (un motif est demandé pour Approuvée partiellement, En litige, Suspendue, Refusée et Rejetée). Ou par API :
 
 ```bash
 # Liste des statuts disponibles
@@ -162,17 +162,18 @@ curl -s http://localhost:3000/v1/admin/lifecycle-statuses -H "Authorization: Bea
 # Forcer un statut
 curl -s -X POST http://localhost:3000/v1/admin/flows/{flowId}/status \
   -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
-  -d '{"statusCode": "210", "comment": "Montant TVA incorrect"}'
+  -d '{"statusCode": "210", "reasonCode": "MONTANTTOTAL_ERR", "comment": "Montant TVA incorrect"}'
 ```
 
 Effets du changement de statut :
 
 - le flux facture est mis à jour (`updatedAt`, donc visible dans une recherche en différentiel via `where.updatedAfter`) ;
-- un **flux de cycle de vie CDAR** est émis (`SupplierInvoiceLC` ou `CustomerInvoiceLC` selon le type de la facture), avec le motif dans `StatusReason` : c'est ce flux que votre chaîne d'intégration récupère via `POST /flows/search` puis `GET /flows/{flowId}` ;
+- un **flux de cycle de vie CDAR** est émis (`SupplierInvoiceLC` ou `CustomerInvoiceLC` selon le type de la facture), avec le motif dans `SpecifiedDocumentStatus` (`ReasonCode` MDT-113 + `Reason` MDT-114) : c'est ce flux que votre chaîne d'intégration récupère via `POST /flows/search` puis `GET /flows/{flowId}` ;
 - `emitLifecycleFlow: false` dans le corps désactive l'émission du CDAR si vous voulez seulement changer la métadonnée ;
+- `reasonCode` (MDT-113) est optionnel : à défaut, le motif par défaut du statut est utilisé, chaque statut n'acceptant qu'une liste fermée de motifs (BR-FR-CDV-CL-09) ;
 - un `statusCode`/`statusName` libre est accepté pour tester des statuts hors référentiel.
 
-Statuts du référentiel mock : 200 Déposée, 201 Rejetée, 202 Émise par la plateforme, 203 Reçue par la plateforme, 204 Mise à disposition, 205 Prise en charge, 206 Approuvée, 207 Approuvée partiellement, 208 En litige, 210 Refusée, 211 Paiement transmis, 212 Encaissée. La progression automatique après un `POST /flows` suit le cycle nominal (202 → … → 212) et **se fige si vous forcez manuellement 201, 208 ou 210**, pratique pour tester vos scénarios de rejet.
+Statuts du référentiel mock (liste fermée BR-FR-CDV-CL-06) : 200 Déposée, 201 Émise par la plateforme, 202 Reçue par la plateforme, 203 Mise à disposition, 204 Prise en charge, 205 Approuvée, 206 Approuvée partiellement, 207 En litige, 208 Suspendue, 209 Complétée, 210 Refusée, 211 Paiement transmis, 212 Encaissée, 213 Rejetée. La progression automatique après un `POST /flows` suit le cycle nominal (201 → … → 212) et **se fige si vous forcez manuellement 207, 210 ou 213**, pratique pour tester vos scénarios de rejet.
 
 ### 5. S'abonner aux événements par webhook
 

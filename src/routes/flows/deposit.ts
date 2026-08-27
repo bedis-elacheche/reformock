@@ -125,6 +125,7 @@ export async function depositFlow(req: Req, res: Res): Promise<Res | void> {
       invoice: { number: invoiceNumber, date: md.issueDate },
       seller: { siret: md.seller?.siret, siren: md.seller?.siren },
       buyer: { siret: md.buyer?.siret, siren: md.buyer?.siren },
+      settlement: { amount: md.totalInclVat, vatRate: md.vatRate, currency: md.currency },
     });
   }
 

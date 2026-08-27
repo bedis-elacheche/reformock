@@ -1,3 +1,5 @@
+import { LIFECYCLE_STATUSES } from "../generators/cdar.ts";
+
 import type { FlowMetadata, FlowSyntax, ParsedFlow, PartyMetadata } from "../types.ts";
 
 function m1(text: string, re: RegExp): string | null {
@@ -111,6 +113,10 @@ function parseFlowFile(content: Buffer): ParsedFlow {
       metadata.totalInclVat = parseFloat(payable);
     }
     metadata.currency = m1(head, /<cbc:DocumentCurrencyCode>([^<]+)</);
+    const ublVatRate = m1(head, /<cac:TaxCategory>[\s\S]*?<cbc:Percent>([^<]+)</);
+    if (ublVatRate) {
+      metadata.vatRate = parseFloat(ublVatRate);
+    }
   } else if (flowSyntax === "CII") {
     invoiceNumber = m1(head, /<rsm:ExchangedDocument>[\s\S]*?<ram:ID>([^<]+)</);
     const issue = m1(head, /<ram:IssueDateTime>[\s\S]*?>(\d{8})</);
@@ -130,17 +136,25 @@ function parseFlowFile(content: Buffer): ParsedFlow {
       metadata.totalInclVat = parseFloat(grand);
     }
     metadata.currency = m1(head, /<ram:InvoiceCurrencyCode>([^<]+)</);
+    const ciiVatRate = m1(head, /<ram:RateApplicablePercent>([^<]+)</);
+    if (ciiVatRate) {
+      metadata.vatRate = parseFloat(ciiVatRate);
+    }
   } else if (flowSyntax === "CDAR") {
     invoiceNumber = m1(head, /<ram:IssuerAssignedID>([^<]+)</);
-    metadata.statusCode = m1(head, /<ram:StatusCode>([^<]+)</);
-    metadata.statusName = m1(head, /<ram:StatusName>([^<]+)</);
+    // MDT-105 : le libellé n'est pas porté par le CDV, il se déduit du code.
+    const statusCode = m1(head, /<ram:ProcessConditionCode>([^<]+)</);
+    metadata.statusCode = statusCode;
+    metadata.statusName = statusCode
+      ? (LIFECYCLE_STATUSES.find((s) => s.code === statusCode)?.name ?? null)
+      : null;
     const refDate = m1(head, /<ram:FormattedIssueDateTime>[\s\S]*?>(\d{8})</);
     if (refDate) {
       metadata.issueDate = `${refDate.slice(0, 4)}-${refDate.slice(4, 6)}-${refDate.slice(6, 8)}`;
     }
     const sellerSiren = m1(
       head,
-      /<ram:RecipientTradeParty>[\s\S]*?<ram:SpecifiedLegalOrganization>[\s\S]*?<ram:ID schemeID="0002">([^<]+)</,
+      /<ram:RecipientTradeParty>[\s\S]*?<ram:GlobalID schemeID="0002">([^<]+)</,
     );
     if (sellerSiren) {
       metadata.seller = { siren: sellerSiren.trim() };
