@@ -8,6 +8,7 @@ import fastifyFormbody from "@fastify/formbody";
 import fastifyRateLimit from "@fastify/rate-limit";
 
 import { config } from "./config.ts";
+import { connectRateLimitRedis, closeRateLimitRedis } from "./services/rate-limit.ts";
 import { sendError } from "./utils/http.ts";
 import { tokenEndpoint, bearerMiddleware, AUTH_DISABLED } from "./auth.ts";
 
@@ -44,10 +45,15 @@ export async function buildApp(): Promise<FastifyInstance> {
     },
   });
   if (config.rateLimit.enabled) {
+    const redis = await connectRateLimitRedis();
+    if (redis) {
+      app.addHook("onClose", () => closeRateLimitRedis(redis));
+    }
     await app.register(fastifyRateLimit, {
       global: true,
       max: config.rateLimit.max,
       timeWindow: config.rateLimit.windowMs,
+      ...(redis ? { redis, nameSpace: config.rateLimit.redisNamespace } : {}),
       allowList: (req) => req.url.split("?")[0].endsWith("/healthcheck"),
       errorResponseBuilder: (_req, context) => {
         const err = new Error(

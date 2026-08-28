@@ -217,6 +217,9 @@ cp .env.example .env   # puis ajustez les valeurs ; .env n'est jamais committé
 | `RATE_LIMIT_ENABLED`                      | `true`                        | `false` pour désactiver la limitation de débit                                                                                      |
 | `RATE_LIMIT_MAX`                          | `100`                         | Nombre maximal de requêtes par fenêtre et par IP                                                                                    |
 | `RATE_LIMIT_WINDOW_SECONDS`               | `60`                          | Durée de la fenêtre de limitation (s)                                                                                               |
+| `REDIS_URL`                               | _(vide)_                      | `redis://` / `rediss://` : compteur de débit partagé entre instances ; vide = compteur en mémoire                                   |
+| `RATE_LIMIT_REDIS_NAMESPACE`              | `reformock:rate-limit:`       | Préfixe des clés Redis de limitation de débit                                                                                       |
+| `RATE_LIMIT_REDIS_REQUIRED`               | `false`                       | `true` : le démarrage échoue si Redis est injoignable (au lieu du repli en mémoire)                                                 |
 | `SEED_COUNT`                              | `20`                          | Factures fournisseurs générées au démarrage                                                                                         |
 | `GENERATION_INTERVAL_SECONDS`             | `60`                          | Génération continue de 1–3 factures (0 = désactivé)                                                                                 |
 | `LIFECYCLE_DELAY_SECONDS`                 | `15`                          | Délai entre chaque statut après un dépôt                                                                                            |
@@ -226,6 +229,20 @@ cp .env.example .env   # puis ajustez les valeurs ; .env n'est jamais committé
 | `TOKEN_TTL_SECONDS`                       | `3600`                        | Durée de vie des jetons                                                                                                             |
 | `MAX_WEBHOOKS`                            | `50`                          | Nombre maximal de webhooks enregistrables (0 = illimité) ; au-delà, `POST /v1/webhooks` renvoie `403 WEBHOOK_LIMIT_REACHED`         |
 | `WEBHOOK_ALLOW_PRIVATE`                   | `false`                       | `true` pour autoriser des `callbackUrl` vers des adresses privées/loopback (protection anti-SSRF désactivée, pratique en dev local) |
+
+### Limitation de débit (Redis)
+
+Les compteurs de débit sont stockés dans **Redis** dès que `REDIS_URL` est défini : plusieurs instances de Réformock derrière un load balancer partagent alors la même limite par IP, au lieu de compter chacune de leur côté. Sans `REDIS_URL`, le compteur reste en mémoire — pratique en local, insuffisant dès qu'il y a plus d'une instance.
+
+```bash
+docker run -d --name reformock-redis -p 6379:6379 redis:8-alpine
+docker run -p 3000:3000 -e REDIS_URL=redis://host.docker.internal:6379 belacheche/reformock
+```
+
+- Les clés sont préfixées par `RATE_LIMIT_REDIS_NAMESPACE` (`reformock:rate-limit:` par défaut) et expirent d'elles-mêmes à la fin de la fenêtre : aucun nettoyage à prévoir.
+- Si Redis tombe en cours de route, les requêtes **passent** plutôt que d'être rejetées (`skipOnError`) : un incident sur le cache ne coupe pas le mock.
+- Au démarrage, un `REDIS_URL` injoignable déclenche un repli en mémoire avec avertissement ; mettez `RATE_LIMIT_REDIS_REQUIRED=true` pour faire échouer le démarrage à la place.
+- Le mot de passe éventuel de `REDIS_URL` est masqué dans les logs.
 
 ## Tests
 
@@ -238,8 +255,13 @@ pnpm test:integration  # tests d'intégration seuls (HTTP via fastify.inject)
 pnpm typecheck:test    # vérifie le typage des tests et des sources
 ```
 
-- **Tests unitaires** (`test/unit/`) : détection de syntaxe et extraction de métadonnées (`parse`), modèle de stockage en mémoire et recherche/pagination par curseur (`store`), générateurs de données (SIREN/SIRET valides au sens de Luhn, clé TVA, cohérence des totaux) et générateurs XML/PDF (UBL, CII, CDAR, PDF), avec aller-retour génération → parsing.
-- **Tests d'intégration** (`test/integration/`) : OAuth2 et middleware bearer, dépôt de flux `multipart` (checksum, auto-détection), recherche standard et pagination, téléchargement par `docType`, routes `admin` (inject, statut forcé, génération, reset), et webhooks avec **vérification réelle de la signature HMAC-SHA-256** via un callback local.
+- **Tests unitaires** (`test/unit/`) : détection de syntaxe et extraction de métadonnées (`parse`), modèle de stockage en mémoire et recherche/pagination par curseur (`store`), générateurs de données (SIREN/SIRET valides au sens de Luhn, clé TVA, cohérence des totaux) générateurs XML/PDF (UBL, CII, CDAR, PDF) avec aller-retour génération → parsing, et connexion Redis de la limitation de débit (repli en mémoire, mode strict, masquage du mot de passe).
+- **Tests d'intégration** (`test/integration/`) : OAuth2 et middleware bearer, dépôt de flux `multipart` (checksum, auto-détection), recherche standard et pagination, téléchargement par `docType`, routes `admin` (inject, statut forcé, génération, reset), et webhooks avec **vérification réelle de la signature HMAC-SHA-256** via un callback local. Le test de limitation de débit sur Redis ne s'exécute que si `TEST_REDIS_URL` est défini (il est ignoré sinon) ; il vérifie que deux instances partagent bien le même compteur :
+
+```bash
+docker run -d --rm -p 6379:6379 redis:8-alpine
+TEST_REDIS_URL=redis://127.0.0.1:6379 pnpm test:integration
+```
 
 L'application est construite par `buildApp()` ([`src/app.ts`](src/app.ts)), ce qui permet aux tests d'utiliser `fastify.inject()` sans ouvrir de port ni démarrer le simulateur. [`src/index.ts`](src/index.ts) ne fait qu'assembler `buildApp()`, le seed et l'écoute réseau.
 

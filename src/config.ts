@@ -34,6 +34,10 @@ const ConfigSchema = z
     RATE_LIMIT_ENABLED: z.stringbool().default(true),
     RATE_LIMIT_MAX: z.coerce.number().int().min(1).default(100),
     RATE_LIMIT_WINDOW_SECONDS: z.coerce.number().int().min(1).default(60),
+    // Une valeur vide (`REDIS_URL=` dans .env) équivaut à « non défini ».
+    REDIS_URL: z.union([z.literal(""), z.url({ protocol: /^rediss?$/ })]).optional(),
+    RATE_LIMIT_REDIS_NAMESPACE: z.string().trim().default("reformock:rate-limit:"),
+    RATE_LIMIT_REDIS_REQUIRED: z.stringbool().default(false),
   })
   .transform((env) => ({
     nodeEnv: env.NODE_ENV,
@@ -69,6 +73,9 @@ const ConfigSchema = z
       enabled: env.RATE_LIMIT_ENABLED,
       max: env.RATE_LIMIT_MAX,
       windowMs: env.RATE_LIMIT_WINDOW_SECONDS * 1000,
+      redisUrl: env.REDIS_URL || undefined,
+      redisNamespace: env.RATE_LIMIT_REDIS_NAMESPACE,
+      redisRequired: env.RATE_LIMIT_REDIS_REQUIRED,
     },
   }));
 

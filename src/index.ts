@@ -3,6 +3,7 @@ import * as store from "./services/store.ts";
 import * as webhooks from "./services/webhooks.ts";
 import * as simulator from "./services/simulator.ts";
 import { buildApp } from "./app.ts";
+import { describeRateLimit } from "./services/rate-limit.ts";
 import { AUTH_DISABLED, CLIENT_ID, CLIENT_SECRET, USERNAME, PASSWORD } from "./auth.ts";
 
 const { host: HOST, port: PORT, apiPrefix: API_PREFIX } = config.server;
@@ -27,7 +28,20 @@ async function start(): Promise<void> {
     console.log(`  client_credentials : client_id=${CLIENT_ID}, client_secret=${CLIENT_SECRET}`);
     console.log(`  password           : + username=${USERNAME}, password=${PASSWORD}`);
   }
+  console.log(`Rate limit    : ${describeRateLimit()}`);
   console.log(`Flux initiaux : ${store.count()}\n`);
+
+  for (const signal of ["SIGINT", "SIGTERM"] as const) {
+    process.once(signal, () => {
+      app.close().then(
+        () => process.exit(0),
+        (err: unknown) => {
+          console.error(err);
+          process.exit(1);
+        },
+      );
+    });
+  }
 }
 
 start().catch((err) => {
